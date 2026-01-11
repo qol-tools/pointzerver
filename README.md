@@ -13,11 +13,15 @@
 
 <p align="center">Headless server for remote PC control from mobile devices</p>
 
+## Platform Support
+
+- [x] Linux
+- [x] macOS
+- [x] Windows
+
 ## Overview
 
 PointZerver is a Rust daemon that enables remote control of your PC from mobile devices. Works with [PointZ](https://github.com/qol-tools/pointz) mobile app.
-
-**Platforms:** Linux, macOS, Windows
 
 ## Installation
 
