@@ -1,0 +1,200 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.1.0)'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build - ${{ matrix.name_suffix }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: pointzerver-linux-x86_64
+            name_suffix: Linux (x86_64)
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: pointzerver-windows-x86_64.exe
+            name_suffix: Windows (x86_64)
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: pointzerver-macos-x86_64
+            name_suffix: macOS (Intel)
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: pointzerver-macos-aarch64
+            name_suffix: macOS (Apple Silicon)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache apt packages
+        if: matrix.os == 'ubuntu-latest'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: pkg-config libx11-dev libxi-dev libxtst-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev libxdo-dev
+          version: 1.2
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Install cargo-deb (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo install cargo-deb
+
+      - name: Build .deb package (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo deb --target ${{ matrix.target }} --no-build
+
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp target/${{ matrix.target }}/release/pointzerver.exe ${{ matrix.artifact_name }}
+          else
+            cp target/${{ matrix.target }}/release/pointzerver ${{ matrix.artifact_name }}
+          fi
+
+      - name: Find and prepare .deb package (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          DEB_FILE=$(find target/${{ matrix.target }}/debian -name "*.deb" | head -n 1)
+          if [ -f "$DEB_FILE" ]; then
+            cp "$DEB_FILE" pointzerver-linux-x86_64.deb
+            echo "DEB_CREATED=true" >> $GITHUB_ENV
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+          retention-days: 90
+
+      - name: Upload .deb artifact (Linux only)
+        if: matrix.os == 'ubuntu-latest' && env.DEB_CREATED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pointzerver-linux-x86_64.deb
+          path: pointzerver-linux-x86_64.deb
+          retention-days: 90
+
+  release:
+    name: Create Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          mkdir -p release_files
+          for artifact_dir in artifacts/*/; do
+            if [ -d "$artifact_dir" ]; then
+              cp "$artifact_dir"* release_files/ 2>/dev/null || true
+            fi
+          done
+          echo "Release files:"
+          ls -lh release_files/
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: PointZerver ${{ steps.version.outputs.version }}
+          body: |
+            ## PointZerver ${{ steps.version.outputs.version }}
+
+            Headless server for remote PC control. Works with [PointZ](https://github.com/qol-tools/pointz) mobile app.
+
+            ### Downloads
+
+            - **Linux (x86_64)**:
+              - `.deb` package: `pointzerver-linux-x86_64.deb`
+              - Binary: `pointzerver-linux-x86_64`
+            - **Windows (x86_64)**: `pointzerver-windows-x86_64.exe`
+            - **macOS (Intel)**: `pointzerver-macos-x86_64`
+            - **macOS (Apple Silicon)**: `pointzerver-macos-aarch64`
+
+            ### Installation
+
+            **As qol-tray plugin (recommended):**
+            ```bash
+            git clone https://github.com/qol-tools/plugin-pointz ~/.config/qol-tray/plugins/plugin-pointz
+            ```
+
+            **Standalone (Linux .deb):**
+            ```bash
+            sudo dpkg -i pointzerver-linux-x86_64.deb
+            pointzerver
+            ```
+
+            **Standalone (manual):**
+            ```bash
+            # Download the binary for your platform
+            chmod +x pointzerver-*
+            sudo mv pointzerver-* /usr/local/bin/pointzerver
+            pointzerver
+            ```
+
+            ### Mobile App
+
+            Download the [PointZ mobile app](https://github.com/qol-tools/pointz/releases) to control your PC.
+
+            ### Ports
+
+            | Port  | Protocol | Purpose         |
+            |-------|----------|-----------------|
+            | 45454 | UDP      | Discovery       |
+            | 45455 | UDP      | Command/Control |
+            | 45460 | HTTP     | Status API      |
+          files: release_files/*
+          draft: false
+          prerelease: false
