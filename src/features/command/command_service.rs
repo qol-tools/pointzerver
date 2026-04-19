@@ -1,8 +1,8 @@
+use crate::domain::config::ServerConfig;
+use crate::domain::models::Command;
+use crate::input::InputHandler;
 use anyhow::Result;
 use tokio::net::UdpSocket;
-use crate::domain::models::Command;
-use crate::domain::config::ServerConfig;
-use crate::input::InputHandler;
 
 /// Service that receives and processes commands from clients
 pub struct CommandService {
@@ -24,7 +24,7 @@ impl CommandService {
     /// Runs the command loop, processing incoming commands indefinitely
     pub async fn run(&self) -> Result<()> {
         let mut buf = [0; ServerConfig::COMMAND_BUFFER_SIZE];
-        
+
         loop {
             match self.socket.recv_from(&mut buf).await {
                 Ok((size, _addr)) => {
@@ -41,4 +41,3 @@ impl CommandService {
         }
     }
 }
-

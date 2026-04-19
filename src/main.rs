@@ -1,13 +1,13 @@
 mod domain;
 mod features;
 mod input;
-mod utils;
 mod status_server;
+mod utils;
 
 use anyhow::Result;
 
-use crate::features::discovery::discovery_service::DiscoveryService;
 use crate::features::command::command_service::CommandService;
+use crate::features::discovery::discovery_service::DiscoveryService;
 
 #[tokio::main]
 async fn main() -> Result<()> {

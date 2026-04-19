@@ -1,10 +1,10 @@
-use anyhow::Result;
-use crate::input::InputHandlerTrait;
 use crate::domain::config::ServerConfig;
 use crate::domain::models::ModifierKeys;
-use rdev::{simulate, Button, Key, EventType, SimulateError};
-use std::time::Duration;
+use crate::input::InputHandlerTrait;
+use anyhow::Result;
+use rdev::{simulate, Button, EventType, Key, SimulateError};
 use std::sync::Mutex;
+use std::time::Duration;
 
 #[cfg(target_os = "linux")]
 use x11::xlib;
@@ -68,27 +68,28 @@ fn send_event(event_type: EventType) -> Result<()> {
 #[async_trait::async_trait]
 impl InputHandlerTrait for InputHandlerImpl {
     async fn mouse_move(&self, x: f64, y: f64) -> Result<()> {
-        let mut pos_opt = self.current_pos.lock()
+        let mut pos_opt = self
+            .current_pos
+            .lock()
             .expect("Cursor position mutex poisoned");
-        
+
         let (new_x, new_y) = if let Some((px, py)) = *pos_opt {
             (px + x, py + y)
         } else if let Some((cx, cy)) = Self::get_cursor_position() {
             (cx + x, cy + y)
         } else {
-            (ServerConfig::FALLBACK_SCREEN_WIDTH / 2.0 + x,
-             ServerConfig::FALLBACK_SCREEN_HEIGHT / 2.0 + y)
+            (
+                ServerConfig::FALLBACK_SCREEN_WIDTH / 2.0 + x,
+                ServerConfig::FALLBACK_SCREEN_HEIGHT / 2.0 + y,
+            )
         };
-        
+
         *pos_opt = Some((new_x, new_y));
-        
-        send_event(EventType::MouseMove {
-            x: new_x,
-            y: new_y,
-        })?;
+
+        send_event(EventType::MouseMove { x: new_x, y: new_y })?;
         Ok(())
     }
-    
+
     async fn mouse_click(&self, button: u8) -> Result<()> {
         let button_enum = match button {
             1 => Button::Left,
@@ -96,13 +97,13 @@ impl InputHandlerTrait for InputHandlerImpl {
             3 => Button::Middle,
             _ => Button::Left,
         };
-        
+
         send_event(EventType::ButtonPress(button_enum))?;
         tokio::time::sleep(Duration::from_millis(ServerConfig::MOUSE_CLICK_DELAY_MS)).await;
         send_event(EventType::ButtonRelease(button_enum))?;
         Ok(())
     }
-    
+
     async fn mouse_down(&self, button: u8) -> Result<()> {
         let button_enum = match button {
             1 => Button::Left,
@@ -110,11 +111,11 @@ impl InputHandlerTrait for InputHandlerImpl {
             3 => Button::Middle,
             _ => Button::Left,
         };
-        
+
         send_event(EventType::ButtonPress(button_enum))?;
         Ok(())
     }
-    
+
     async fn mouse_up(&self, button: u8) -> Result<()> {
         let button_enum = match button {
             1 => Button::Left,
@@ -122,11 +123,11 @@ impl InputHandlerTrait for InputHandlerImpl {
             3 => Button::Middle,
             _ => Button::Left,
         };
-        
+
         send_event(EventType::ButtonRelease(button_enum))?;
         Ok(())
     }
-    
+
     async fn mouse_scroll(&self, delta_x: f64, delta_y: f64) -> Result<()> {
         if delta_y != 0.0 {
             send_event(EventType::Wheel {
@@ -142,25 +143,27 @@ impl InputHandlerTrait for InputHandlerImpl {
         }
         Ok(())
     }
-    
+
     async fn key_press(&self, key: &str, modifiers: &ModifierKeys) -> Result<()> {
         Self::apply_modifiers(&self.modifier_state, modifiers)?;
-        
+
         if let Some(key_enum) = string_to_key(key) {
             send_event(EventType::KeyPress(key_enum))?;
         }
         Ok(())
     }
-    
+
     async fn key_release(&self, key: &str, _modifiers: &ModifierKeys) -> Result<()> {
         if let Some(key_enum) = string_to_key(key) {
             send_event(EventType::KeyRelease(key_enum))?;
         }
         Ok(())
     }
-    
+
     async fn modifier_press(&self, modifier: &str) -> Result<()> {
-        let mut state = self.modifier_state.lock()
+        let mut state = self
+            .modifier_state
+            .lock()
             .expect("Modifier state mutex poisoned");
         match modifier.to_lowercase().as_str() {
             "ctrl" | "control" => {
@@ -183,9 +186,11 @@ impl InputHandlerTrait for InputHandlerImpl {
         }
         Ok(())
     }
-    
+
     async fn modifier_release(&self, modifier: &str) -> Result<()> {
-        let mut state = self.modifier_state.lock()
+        let mut state = self
+            .modifier_state
+            .lock()
             .expect("Modifier state mutex poisoned");
         match modifier.to_lowercase().as_str() {
             "ctrl" | "control" => {
@@ -212,9 +217,8 @@ impl InputHandlerTrait for InputHandlerImpl {
 
 impl InputHandlerImpl {
     fn apply_modifiers(state: &Mutex<ModifierKeys>, modifiers: &ModifierKeys) -> Result<()> {
-        let mut state_guard = state.lock()
-            .expect("Modifier state mutex poisoned");
-        
+        let mut state_guard = state.lock().expect("Modifier state mutex poisoned");
+
         if modifiers.ctrl && !state_guard.ctrl {
             send_event(EventType::KeyPress(Key::ControlLeft))?;
             state_guard.ctrl = true;
@@ -231,7 +235,7 @@ impl InputHandlerImpl {
             send_event(EventType::KeyPress(Key::MetaLeft))?;
             state_guard.meta = true;
         }
-        
+
         if !modifiers.ctrl && state_guard.ctrl {
             send_event(EventType::KeyRelease(Key::ControlLeft))?;
             state_guard.ctrl = false;
@@ -248,7 +252,7 @@ impl InputHandlerImpl {
             send_event(EventType::KeyRelease(Key::MetaLeft))?;
             state_guard.meta = false;
         }
-        
+
         Ok(())
     }
 }
