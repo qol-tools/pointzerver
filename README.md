@@ -1,64 +1,25 @@
-<div align="center">
-  <a href="https://github.com/qol-tools/pointzerver">
-    <img
-      src="assets/pz-banner.svg"
-      alt="PointZerver"
-      width="442"
-      height="159"
-    />
-  </a>
-</div>
+# PointZerver
 
-<br>
+[![CI](https://github.com/qol-tools/pointzerver/actions/workflows/ci.yml/badge.svg)](https://github.com/qol-tools/pointzerver/actions/workflows/ci.yml)
 
-<p align="center">Headless server for remote PC control from mobile devices</p>
+A headless server for remote PC control from mobile devices, paired with [PointZ](https://github.com/qol-tools/pointz).
 
-## Platform Support
+## Quick start
 
-- [x] Linux
-- [x] macOS
-- [x] Windows
-
-## Overview
-
-PointZerver is a Rust daemon that enables remote control of your PC from mobile devices. Works with [PointZ](https://github.com/qol-tools/pointz) mobile app.
-
-## Installation
-
-### As a qol-tray plugin
-
-Install via the [qol-tray](https://github.com/qol-tools/qol-tray) Plugin Store, or manually:
+Standalone:
 
 ```bash
-git clone https://github.com/qol-tools/plugin-pointz ~/.config/qol-tray/plugins/plugin-pointz
-```
-
-### Standalone
-
-```bash
+git clone https://github.com/qol-tools/pointzerver
+cd pointzerver
 make install
 ```
 
-## Usage
+Or install via the [qol-tray](https://github.com/qol-tools/qol-tray) plugin store as `plugin-pointz`.
 
-When running standalone:
-1. Start the server: `pointzerver`
-2. Launch [PointZ](https://github.com/qol-tools/pointz) on your phone
-3. The app auto-discovers and connects to the server
+## About
 
-## Building
+Run `pointzerver`, then launch PointZ on a phone on the same network. The phone auto-discovers the server. See [docs/protocol.md](docs/protocol.md) for the network ports.
 
-```bash
-make build    # Debug build
-make release  # Release build
-make run      # Build and run
-make test     # Run tests
-```
+## License
 
-## Ports
-
-| Port  | Protocol | Purpose           |
-|-------|----------|-------------------|
-| 45454 | UDP      | Discovery         |
-| 45455 | UDP      | Command/Control   |
-| 45460 | HTTP     | Status API        |
+PolyForm Noncommercial 1.0.0
