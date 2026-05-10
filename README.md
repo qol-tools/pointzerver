@@ -1,6 +1,7 @@
 # PointZerver
 
-[![CI](https://github.com/qol-tools/pointzerver/actions/workflows/ci.yml/badge.svg)](https://github.com/qol-tools/pointzerver/actions/workflows/ci.yml)
+[![tests](https://github.com/qol-tools/pointzerver/actions/workflows/tests.yml/badge.svg)](https://github.com/qol-tools/pointzerver/actions/workflows/tests.yml)
+[![lint](https://github.com/qol-tools/pointzerver/actions/workflows/lint.yml/badge.svg)](https://github.com/qol-tools/pointzerver/actions/workflows/lint.yml)
 
 A headless server for remote PC control from mobile devices, paired with [PointZ](https://github.com/qol-tools/pointz).
 

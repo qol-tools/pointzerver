@@ -1,0 +1,31 @@
+name: lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: pkg-config libx11-dev libxi-dev libxtst-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev libxdo-dev
+          version: 1.2
+      - uses: swatinem/rust-cache@v2
+        with:
+          shared-key: rust-cache
+          cache-all-crates: true
+      - run: cargo clippy --workspace -- -D warnings
